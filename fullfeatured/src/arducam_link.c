@@ -16,7 +16,7 @@ const struct device *console;
 const struct device *video;
 struct video_buffer *vbuf;
 
-uint8_t preivew_on = 0;
+volatile uint8_t preivew_on = 0;
 
 void serial_cb(const struct device *dev, void *user_data);
 
@@ -142,12 +142,23 @@ int video_preview(void) {
         if(recv_len) {
             if (!video_get_ctrl(video, VIDEO_CID_ARDUCAM_CAPTURE, vbuf))
             {
-                uart_buffer_send(console, vbuf->buffer, vbuf->bytesused);
-                // LOG_INF("read fifo :%u. - frame_len %u", vbuf->bytesused ,frame_len);
-                recv_len -= vbuf->bytesused;
+                if (vbuf->bytesused) {
+                    uart_buffer_send(console, vbuf->buffer, vbuf->bytesused);
+                    // LOG_INF("read fifo :%u. - frame_len %u", vbuf->bytesused ,frame_len);
+                    recv_len -= vbuf->bytesused;
+                    if (recv_len == 0)
+                        uart_buffer_send(console,&head_and_tail[3],2);
+                } else {
+                    recv_len = 0;
+                }
+
+                
+            } else {
+                recv_len = 0;
+                LOG_ERR("Unable to read picture fifo!");
             }
+
         } else {
-            uart_buffer_send(console,&head_and_tail[3],2);
             if (video_set_ctrl(video, VIDEO_CID_ARDUCAM_CAPTURE, &recv_len)) {
                 LOG_ERR("Unable to take picture!");
                 return -1;
@@ -192,7 +203,7 @@ int report_mega_info(void)
         "Camera Exposure Value Max:%ld\r\nCamera Exposure Value "
         "Min:%d\r\nCamera Gain Value Max:%d\r\nCamera Gain Value "
         "Min:%d\r\nCamera Support Sharpness:%d\r\n", mega_type, 
-        mega_info.support_resoultion, mega_info.support_special_effects, 
+        mega_info.support_resolution, mega_info.support_special_effects, 
         mega_info.enable_focus, mega_info.exposure_value_max, 
         mega_info.exposure_value_min, mega_info.gain_value_max, 
         mega_info.gain_value_min, mega_info.enable_sharpness);
@@ -208,8 +219,10 @@ uint8_t cmd_process(uint8_t* buff)
         set_mega_resolution(buff[1]);
         break;
     case SET_VIDEO_RESOLUTION: // Set Video Resolution
+        if(preivew_on == 0) {
+            set_mega_resolution(buff[1]|0x10);
+        }
         preivew_on = 1;
-        set_mega_resolution(buff[1]|0x10);
         break;
     case SET_BRIGHTNESS: // Set brightness
         video_set_ctrl(video, VIDEO_CID_CAMERA_BRIGHTNESS, &buff[1]);
@@ -238,8 +251,8 @@ uint8_t cmd_process(uint8_t* buff)
     case SET_EXPOSUREANDGAIN_ENABEL: // exposure and  Gain control
         video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_EXPOUTRE,&buff[1]);
         video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_GAIN,&buff[1]);
-    case SET_WHILEBALANCE_ENABEL: // while balance control
-        video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_WHILE_BAL,&buff[1]);
+    case SET_WHTEBALANCE_ENABEL: // white balance control
+        video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_WHITE_BAL,&buff[1]);
         break;
     case SET_SHARPNESS:
         video_set_ctrl(video, VIDEO_CID_ARDUCAM_SHARPNESS, &buff[1]);
@@ -259,8 +272,11 @@ uint8_t cmd_process(uint8_t* buff)
         take_picture(); 
         break;
     case STOP_STREAM:
+        if(preivew_on)
+        {
+            uart_buffer_send(console,&head_and_tail[3],2);
+        }
         preivew_on = 0;
-        uart_buffer_send(console,&head_and_tail[0],3);
         break;
     // case GET_FRM_VER_INFO: // Get Firmware version info
     //     reportVerInfo(camera);
