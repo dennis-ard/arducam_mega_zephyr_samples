@@ -183,14 +183,14 @@ int report_mega_info(void)
 
     switch (mega_info.camera_id)
     {
-    case ARDUMEGA_SENSOR_3MP_1:
-    case ARDUMEGA_SENSOR_3MP_2:
+    case ARDUCAM_SENSOR_3MP_1:
+    case ARDUCAM_SENSOR_3MP_2:
         mega_type = "3MP";
         break;
-    case ARDUMEGA_SENSOR_5MP_1:
+    case ARDUCAM_SENSOR_5MP_1:
         mega_type = "5MP";
         break;
-    case ARDUMEGA_SENSOR_5MP_2:
+    case ARDUCAM_SENSOR_5MP_2:
         mega_type = "5MP_2";
         break;
     default:
@@ -249,7 +249,7 @@ uint8_t cmd_process(uint8_t* buff)
     //     }
     //     break;
     case SET_EXPOSUREANDGAIN_ENABEL: // exposure and  Gain control
-        video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_EXPOUTRE,&buff[1]);
+        video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_EXPOSURE,&buff[1]);
         video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_GAIN,&buff[1]);
     case SET_WHTEBALANCE_ENABEL: // white balance control
         video_set_ctrl(video,VIDEO_CID_ARDUCAM_AUTO_WHITE_BAL,&buff[1]);
